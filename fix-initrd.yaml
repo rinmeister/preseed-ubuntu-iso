@@ -1,0 +1,82 @@
+---
+# Playbook that adds a preseed.cfg file in the initrd.
+# preseed.cfg example is included and should be in the playbook directory.
+# ISO is expected to be present in the homepath directory.
+# ISO is mounted on homepath/mnt directory and the files are copied
+# to the homepath/tmp directory. Both theses directories will be created
+# and removed at the end of the play.
+# The preseed.cfg is added to the initrd using cpio. For that initrd.gz is 
+# unarchived and archived again.
+# iso is unmounted at the end of the play and both directories mnt and tmp
+# are deleted.
+
+
+- name: fix the initrd from the iso with the preseed.cfg
+  hosts: localhost
+  vars:
+      ansible_become_pass: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36386132336162346135366434393034373461366235653131626664643833653561336565353436
+          6665303438616530336432333434656533303265646433610a346533646236643961346233343035
+          35383737653834386166626532313439383939663237336163343261343731326531643532353937
+          6466356661366462640a326635303737383438353831383738316334333563653362326163633261
+          3335
+ 
+      iso: ubuntu-18.04.2-server-amd64.iso
+      homepath: /home/rene/Downloads/ 
+  tasks:
+      - name: check if mnt directory exists
+        stat:
+            path: "{{ homepath }}mnt"
+        register: mnt
+      - debug:
+          var: mnt
+      - name: check if tmp directory exists
+        stat:
+            path: "{{ homepath }}tmp"
+        register: tmp
+      - name: create mnt directory
+        file:
+            path: "{{ homepath }}mnt"
+            state: directory
+        when: mnt.stat.exists == false
+      - name: create tmp directory
+        file:
+            path: "{{ homepath }}tmp"
+            state: directory
+        when: tmp.stat.exists == false
+      - name: mount iso on loopback adapter
+        shell: mount -o loop "{{ homepath }}{{ iso }}" "{{ homepath }}mnt"
+        become: yes
+      - name: copy files for editing
+        shell: cp -rT "{{ homepath }}mnt" "{{ homepath }}tmp"
+      - name: chmod install to 666
+        file:
+            path: "{{ homepath }}tmp/install"
+            mode: 0777
+            recurse: yes
+      - name: unarchive initrd
+        shell: gunzip "{{ homepath }}tmp/install/initrd.gz"
+      - name: Add preseed to initrd
+        shell: echo preseed.cfg | cpio -H newc -o -A -F "{{ homepath }}tmp/install/initrd"
+      - name: archive initrd
+        shell: gzip "{{ homepath }}tmp/install/initrd"
+      - name: chmod install to read only
+        file:
+            path: "{{ homepath }}tmp/install"
+            mode: 0555
+            recurse: True
+      - name: fix md5
+        shell: md5sum `find -follow -type f` > md5sum.txt
+        args:
+            chdir: "{{ homepath }}tmp"
+        become: yes
+      - name: create image
+        shell: genisoimage -r -J -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o "{{ homepath }}preseed-{{ iso }}" "{{ homepath }}tmp"
+        become: yes
+      - name: Clean up
+        shell: |
+            umount "{{ homepath }}mnt"
+            rm -R "{{ homepath }}mnt"
+            rm -R "{{ homepath }}tmp"
+        become: yes

@@ -1,0 +1,77 @@
+#### Contents of the preconfiguration file (for stretch)
+# Preseeding only locale sets language, country and locale.
+d-i debian-installer/locale string en_US
+d-i pkgsel/install-language-support boolean false
+
+# Keyboard selection.
+d-i console-setup/ask_detect boolean false
+d-i console-setup/layoutcode string us
+d-i keyboard-configuration/ask_detect boolean false
+d-i keyboard-configuration/layoutcode string us
+
+### Network configuration
+d-i netcfg/choose_interface select auto
+d-i netcfg/disable_autoconfig boolean true
+d-i netcfg/dhcp_failed note
+d-i netcfg/dhcp_options select Configure network manually
+d-i netcfg/get_ipaddress string <ip address> 
+d-i netcfg/get_netmask string <netmask> 
+d-i netcfg/get_gateway string <gateway adress>
+d-i netcfg/get_nameservers string <nameserver address>
+d-i netcfg/confirm_static boolean true
+d-i netcfg/get_hostname string unassigned-hostname
+d-i netcfg/get_domain string unassigned-domain
+d-i netcfg/hostname string somehost
+
+# Disable that annoying WEP key dialog.
+d-i netcfg/wireless_wep string
+
+### Mirror settings
+# If you select ftp, the mirror/country string does not need to be set.
+#d-i mirror/protocol string ftp
+d-i mirror/country string manual
+d-i mirror/http/hostname string archive.ubuntu.com
+d-i mirror/http/directory string /ubuntu
+d-i mirror/http/proxy string
+
+### Account setup
+d-i passwd/root-password-crypted password <crypt(3) encrypted pw>
+
+# To create a normal user account.
+d-i passwd/user-fullname string <Full Name>
+d-i passwd/username string <username>
+# Normal user's password, either in clear text
+d-i passwd/user-password-crypted password <crypt(3) encrypted pw>
+d-i user-setup/encrypt-home boolean false
+
+### Clock and time zone setup
+d-i clock-setup/utc boolean true
+d-i time/zone string Europe/Amsterdam
+d-i clock-setup/ntp boolean true
+
+### Partitioning
+d-i partman-auto/method string regular
+d-i partman-auto/choose_recipe select atomic
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+### Apt setup
+d-i apt-setup/universe boolean true
+
+### Package selection
+tasksel tasksel/first multiselect standard 
+
+# Individual additional packages to install
+d-i pkgsel/include string openssh-server build-essential
+d-i pkgsel/update-policy select none
+d-i pkgsel/updatedb boolean true
+
+### Boot loader installation
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/with_other_os boolean true
+
+# Avoid that last message about the install being complete.
+d-i finish-install/reboot_in_progress note
+
